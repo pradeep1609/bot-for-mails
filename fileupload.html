@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bot Monitor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg2: #161616;
+    --bg3: #1e1e1e;
+    --border: #2a2a2a;
+    --border2: #333;
+    --text: #e8e8e8;
+    --text2: #888;
+    --text3: #555;
+    --green: #1D9E75;
+    --red: #E24B4A;
+    --amber: #BA7517;
+    --blue: #378ADD;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .section { margin-bottom: 2rem; }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.625rem; flex-wrap: wrap; gap: 6px;
+  }
+  .section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text3);
+  }
+
+  /* Topbar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 8px; }
+  .topbar-left { display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .page-title { font-size: 14px; font-weight: 500; color: var(--text); letter-spacing: -0.01em; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .parsed-time { font-size: 11px; color: var(--text3); }
+  .log-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 99px;
+    background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border);
+  }
+
+  /* Countdown ring */
+  .refresh-wrap { display: flex; align-items: center; gap: 6px; }
+  .countdown-ring { position: relative; width: 22px; height: 22px; }
+  .countdown-ring svg { transform: rotate(-90deg); }
+  .countdown-ring circle { fill: none; stroke-width: 2; }
+  .ring-bg { stroke: var(--border2); }
+  .ring-fg { stroke: var(--green); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .countdown-num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--text3); font-family: var(--mono);
+  }
+
+  button {
+    font-family: var(--sans); font-size: 12px; cursor: pointer;
+    border: 0.5px solid var(--border); background: var(--bg3); color: var(--text2);
+    border-radius: var(--radius-sm); padding: 4px 12px; height: 30px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  button:hover { border-color: var(--border2); color: var(--text); }
+  .btn-icon { display: flex; align-items: center; gap: 5px; padding: 0 10px; }
+  .btn-primary {
+    background: rgba(29,158,117,0.15); border-color: rgba(29,158,117,0.4);
+    color: #2dd4a7;
+  }
+  .btn-primary:hover { background: rgba(29,158,117,0.25); border-color: rgba(29,158,117,0.6); color: #2dd4a7; }
+
+  /* Config panel */
+  .config-panel {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .config-panel.collapsed .config-body { display: none; }
+  .config-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.625rem 1rem; cursor: pointer; user-select: none;
+  }
+  .config-head:hover { background: rgba(255,255,255,0.02); }
+  .config-head-left { display: flex; align-items: center; gap: 8px; }
+  .config-status { font-size: 10px; color: var(--text3); }
+  .config-status.ok { color: var(--green); }
+  .config-status.warn { color: var(--amber); }
+  .config-body { padding: 1rem; border-top: 0.5px solid var(--border); }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .config-field label {
+    display: block; font-size: 10px; color: var(--text3); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .config-field input {
+    font-family: var(--mono); font-size: 11px; width: 100%; padding: 6px 10px;
+    background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); outline: none; transition: border-color 0.15s;
+  }
+  .config-field input:focus { border-color: var(--border2); }
+  .config-field input.set { border-color: rgba(29,158,117,0.4); }
+  .config-hint {
+    margin-top: 0.75rem; padding: 0.625rem 0.875rem;
+    background: rgba(55,138,221,0.07); border: 0.5px solid rgba(55,138,221,0.2);
+    border-radius: var(--radius-sm); font-size: 11px; color: var(--text2); line-height: 1.7;
+  }
+  .config-hint code {
+    font-family: var(--mono); font-size: 10px; background: var(--bg3);
+    padding: 1px 5px; border-radius: 3px; color: #60a5fa;
+  }
+  .config-actions { display: flex; gap: 6px; margin-top: 0.75rem; }
+
+  /* Date browser */
+  .date-browser {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: var(--bg2); border-radius: var(--radius);
+    padding: 0.5rem 0.75rem; border: 0.5px solid var(--border);
+  }
+  .date-browser input[type="date"] {
+    font-family: var(--sans); font-size: 11px; padding: 3px 8px; height: 28px;
+    border-radius: var(--radius-sm); border: 0.5px solid var(--border);
+    background: var(--bg3); color: var(--text); outline: none; cursor: pointer;
+  }
+  .date-browser input[type="date"]:focus { border-color: var(--border2); }
+  .date-browser label { font-size: 11px; color: var(--text3); }
+  .mode-indicator {
+    font-size: 10px; padding: 2px 8px; border-radius: 99px;
+    background: rgba(186,117,23,0.12); color: var(--amber); border: 0.5px solid rgba(186,117,23,0.3);
+  }
+  .mode-indicator.live {
+    background: rgba(29,158,117,0.12); color: #2dd4a7; border-color: rgba(29,158,117,0.3);
+  }
+
+  /* Filter row */
+  .filter-row {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: var(--bg2); border-radius: var(--radius);
+    padding: 0.5rem 0.75rem; border: 0.5px solid var(--border);
+  }
+  .filter-row label { font-size: 11px; color: var(--text3); }
+  .filter-row select, .filter-row input[type="date"] {
+    font-family: var(--sans); font-size: 11px; padding: 3px 8px; height: 28px;
+    border-radius: var(--radius-sm); border: 0.5px solid var(--border);
+    background: var(--bg3); color: var(--text); outline: none; cursor: pointer;
+  }
+  .divider { width: 0.5px; height: 18px; background: var(--border); }
+
+  /* Stat grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+  .stat-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 0.875rem 1rem; }
+  .stat-card.accent-warn { border-color: rgba(186,117,23,0.4); }
+  .stat-card.accent-danger { border-color: rgba(226,75,74,0.4); }
+  .stat-label { font-size: 10px; color: var(--text3); margin-bottom: 5px; letter-spacing: 0.03em; }
+  .stat-val { font-size: 26px; font-weight: 500; line-height: 1; color: var(--text); letter-spacing: -0.02em; }
+  .stat-val.warn { color: var(--amber); }
+  .stat-val.danger { color: var(--red); }
+  .stat-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+  /* Seg + tabs */
+  .seg { display: flex; background: var(--bg3); border-radius: var(--radius-sm); padding: 2px; gap: 2px; border: 0.5px solid var(--border); }
+  .seg button { font-size: 11px; padding: 2px 10px; border: 0.5px solid transparent; background: transparent; color: var(--text2); border-radius: 5px; height: auto; }
+  .seg button.on { background: var(--bg2); color: var(--text); border-color: var(--border); }
+  .tab-row { display: flex; gap: 3px; margin-bottom: 0.5rem; }
+  .tab-btn { font-size: 11px; padding: 3px 12px; border-radius: var(--radius-sm); background: transparent; color: var(--text3); border: 0.5px solid transparent; height: auto; }
+  .tab-btn.on { background: var(--bg2); color: var(--text); border-color: var(--border); }
+
+  /* Table */
+  .tbl-wrap { border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .tbl-wrap.scrollable { overflow-y: auto; max-height: 320px; }
+  .tbl-wrap.scrollable::-webkit-scrollbar { width: 4px; }
+  .tbl-wrap.scrollable::-webkit-scrollbar-track { background: transparent; }
+  .tbl-wrap.scrollable::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+  .tbl-wrap.scrollable thead th { position: sticky; top: 0; z-index: 1; background: var(--bg2); box-shadow: 0 0.5px 0 var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  thead { background: var(--bg2); }
+  th { text-align: left; font-size: 10px; font-weight: 600; color: var(--text3); padding: 8px 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  td { padding: 9px 12px; border-top: 0.5px solid var(--border); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  tr:first-child td { border-top: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 500; white-space: nowrap; }
+  .b-green  { background: rgba(29,158,117,0.12); color: #2dd4a7; }
+  .b-red    { background: rgba(226,75,74,0.12);  color: #f87171; }
+  .b-amber  { background: rgba(186,117,23,0.15); color: #f59e0b; }
+  .b-blue   { background: rgba(55,138,221,0.12); color: #60a5fa; }
+  .b-gray   { background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border); }
+  .b-purple { background: rgba(168,85,247,0.12); color: #c084fc; }
+
+  .pbar-bg { height: 3px; background: var(--bg3); border-radius: 99px; overflow: hidden; margin-top: 5px; min-width: 60px; }
+  .pbar-fill { height: 100%; border-radius: 99px; background: var(--green); transition: width 0.3s ease; }
+
+  /* Log box */
+  .log-box { background: var(--bg2); border-radius: var(--radius); padding: 0.875rem 1rem; font-family: var(--mono); font-size: 11px; line-height: 1.8; max-height: 210px; overflow-y: auto; border: 0.5px solid var(--border); }
+  .log-box::-webkit-scrollbar { width: 4px; }
+  .log-box::-webkit-scrollbar-track { background: transparent; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+  .lg { color: #2dd4a7; } .lr { color: #f87171; } .ly { color: #f59e0b; } .lb { color: #60a5fa; } .ll { color: var(--text3); }
+
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-g { background: var(--green); } .dot-a { background: var(--amber); } .dot-x { background: var(--border2); }
+  .empty { font-size: 12px; color: var(--text3); padding: 0.875rem 1rem; }
+
+  /* IP section */
+  .ip-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ip-stat-strip { display: flex; gap: 6px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .ip-stat-pill { font-size: 10px; padding: 3px 10px; border-radius: 99px; background: var(--bg3); border: 0.5px solid var(--border); color: var(--text2); }
+  .ip-stat-pill span { color: var(--text); font-weight: 600; }
+  tr.ip-repeat td { background: rgba(186,117,23,0.04); }
+  tr.ip-repeat:hover td { background: rgba(186,117,23,0.08); }
+  .mail-cell { white-space: normal; word-break: break-all; }
+  .mail-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+  .mail-tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(55,138,221,0.1); color: #60a5fa; border: 0.5px solid rgba(55,138,221,0.2); font-family: var(--mono); white-space: nowrap; }
+
+  /* Fetch status bar */
+  .fetch-bar {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    padding: 0.5rem 0.75rem; background: var(--bg2); border-radius: var(--radius);
+    border: 0.5px solid var(--border); margin-bottom: 0.5rem; font-size: 11px;
+  }
+  .fetch-item { display: flex; align-items: center; gap: 5px; color: var(--text2); }
+  .fetch-item.loading { color: var(--amber); }
+  .fetch-item.ok { color: #2dd4a7; }
+  .fetch-item.err { color: #f87171; }
+  .fetch-item.idle { color: var(--text3); }
+
+  /* Spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+  @media (max-width: 600px) {
+    .page { padding: 1.25rem 1rem 3rem; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .config-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-dot" id="live-dot"></div>
+      <span class="page-title">Bot Monitor</span>
+      <span class="log-badge" id="log-count-lbl" style="display:none"></span>
+      <span class="mode-indicator live" id="mode-lbl">LIVE</span>
+    </div>
+    <div class="topbar-right">
+      <span class="parsed-time" id="last-parsed"></span>
+      <div class="refresh-wrap">
+        <div class="countdown-ring" title="Auto-refresh countdown">
+          <svg width="22" height="22" viewBox="0 0 22 22">
+            <circle class="ring-bg" cx="11" cy="11" r="8"/>
+            <circle class="ring-fg" id="ring-fg" cx="11" cy="11" r="8" stroke-dasharray="50.3" stroke-dashoffset="0"/>
+          </svg>
+          <div class="countdown-num" id="countdown-num">30</div>
+        </div>
+        <button class="btn-icon" onclick="manualRefresh()" title="Refresh now"><i class="ti ti-refresh"></i></button>
+      </div>
+      <button class="btn-icon" onclick="toggleAutoRefresh()" id="auto-btn" title="Pause auto-refresh"><i class="ti ti-player-pause"></i></button>
+    </div>
+  </div>
+
+  <!-- Dropbox config -->
+  <div class="section">
+    <div class="config-panel" id="config-panel">
+      <div class="config-head" onclick="toggleConfig()">
+        <div class="config-head-left">
+          <span class="section-title" style="margin:0">Dropbox links</span>
+          <span class="config-status warn" id="config-status-lbl">Not configured</span>
+        </div>
+        <i class="ti ti-chevron-down" id="config-chevron" style="font-size:14px;color:var(--text3)"></i>
+      </div>
+      <div class="config-body">
+        <div class="config-hint">
+          <b style="color:var(--text)">How to get your Dropbox links:</b><br>
+          1. Right-click any log file in Dropbox (web or desktop) → <b>Share</b> → <b>Copy link</b><br>
+          2. Paste it below — the dashboard automatically converts <code>?dl=0</code> → <code>?dl=1</code> for direct download<br>
+          3. Links are saved in your browser — you only need to do this once
+        </div>
+        <div class="config-grid" style="margin-top:0.75rem">
+          <div class="config-field">
+            <label><i class="ti ti-file-text" style="font-size:11px"></i> Out.log 1 URL</label>
+            <input type="text" id="url-log1" placeholder="https://www.dropbox.com/s/xxx/out1.log?dl=0">
+          </div>
+          <div class="config-field">
+            <label><i class="ti ti-file-text" style="font-size:11px"></i> Out.log 2 URL</label>
+            <input type="text" id="url-log2" placeholder="https://www.dropbox.com/s/xxx/out2.log?dl=0">
+          </div>
+          <div class="config-field">
+            <label><i class="ti ti-file-text" style="font-size:11px"></i> Out.log 3 URL</label>
+            <input type="text" id="url-log3" placeholder="https://www.dropbox.com/s/xxx/out3.log?dl=0">
+          </div>
+          <div class="config-field">
+            <label><i class="ti ti-wifi" style="font-size:11px"></i> IP only.log URL</label>
+            <input type="text" id="url-iplog" placeholder="https://www.dropbox.com/s/xxx/iponly.log?dl=0">
+          </div>
+        </div>
+
+        <!-- Historical log section -->
+        <div style="margin-top:1rem;border-top:0.5px solid var(--border);padding-top:0.875rem">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.5rem">Historical logs (optional — add past log URLs by date)</div>
+          <div id="hist-entries"></div>
+          <button class="btn-icon" onclick="addHistEntry()" style="margin-top:6px;font-size:11px">
+            <i class="ti ti-plus"></i> Add date entry
+          </button>
+        </div>
+
+        <div class="config-actions">
+          <button class="btn-primary btn-icon" onclick="saveConfig()"><i class="ti ti-check"></i> Save &amp; fetch</button>
+          <button class="btn-icon" onclick="clearConfig()"><i class="ti ti-trash"></i> Clear saved</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Date browser -->
+  <div class="section">
+    <div class="section-head"><span class="section-title">Date browser</span></div>
+    <div class="date-browser">
+      <label>View logs for date:</label>
+      <input type="date" id="hist-date" onchange="onHistDateChange()">
+      <button class="btn-icon" onclick="loadHistorical()" id="hist-load-btn"><i class="ti ti-archive"></i> Load historical</button>
+      <button class="btn-icon btn-primary" onclick="loadLive()" id="live-load-btn"><i class="ti ti-broadcast"></i> Back to live</button>
+      <span class="mode-indicator" id="date-mode-lbl" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- Live: hour picker (shown in live mode) -->
+  <div class="section" id="live-filter-section">
+    <div class="section-head">
+      <span class="section-title">Time window</span>
+      <span style="font-size:10px;color:var(--text3)" id="live-window-note"></span>
+    </div>
+    <div class="filter-row" style="gap:4px">
+      <label style="margin-right:2px">Show last</label>
+      <div class="seg" id="hour-picker">
+        <button onclick="setLiveHours(1,this)">1 hr</button>
+        <button class="on" onclick="setLiveHours(3,this)">3 hrs</button>
+        <button onclick="setLiveHours(6,this)">6 hrs</button>
+        <button onclick="setLiveHours(12,this)">12 hrs</button>
+        <button onclick="setLiveHours(24,this)">24 hrs</button>
+        <button onclick="setLiveHours(0,this)">All</button>
+      </div>
+      <div class="divider"></div>
+      <span style="font-size:11px;color:var(--text3)" id="live-range-display"></span>
+    </div>
+  </div>
+
+  <!-- Historical: date filter (shown in historical mode) -->
+  <div class="section" id="hist-filter-section" style="display:none">
+    <div class="section-head"><span class="section-title">Date filter</span></div>
+    <div class="filter-row">
+      <select id="qrange" onchange="applyQR()">
+        <option value="">Custom range</option>
+        <option value="24h">Last 24 hrs</option>
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="all">All time</option>
+      </select>
+      <div class="divider"></div>
+      <label>From</label><input type="date" id="dfrom">
+      <label>To</label><input type="date" id="dto">
+      <div class="divider"></div>
+      <button class="btn-icon" onclick="reparse()"><i class="ti ti-filter"></i> Apply</button>
+    </div>
+  </div>
+
+  <!-- Fetch status -->
+  <div class="fetch-bar" id="fetch-bar">
+    <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Fetch status</span>
+    <div class="fetch-item idle" id="fs-log1"><i class="ti ti-circle-dashed"></i> Log 1</div>
+    <div class="fetch-item idle" id="fs-log2"><i class="ti ti-circle-dashed"></i> Log 2</div>
+    <div class="fetch-item idle" id="fs-log3"><i class="ti ti-circle-dashed"></i> Log 3</div>
+    <div class="fetch-item idle" id="fs-iplog"><i class="ti ti-circle-dashed"></i> IP log</div>
+  </div>
+
+  <!-- Active user strip -->
+  <div id="user-strip" style="display:none;margin-bottom:1rem">
+    <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:0.5rem">Active users per log</div>
+    <div id="user-cards" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Overview -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-title">Overview</span>
+      <span id="fnote" style="font-size:10px;color:var(--text3)"></span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Queued</div><div class="stat-val" id="st-q">—</div></div>
+      <div class="stat-card"><div class="stat-label">Processed</div><div class="stat-val" id="st-p">—</div><div class="stat-sub" id="st-ps"></div></div>
+      <div class="stat-card accent-warn"><div class="stat-label">Pending</div><div class="stat-val warn" id="st-pend">—</div><div class="stat-sub">not complete</div></div>
+      <div class="stat-card"><div class="stat-label">Ignored</div><div class="stat-val" id="st-i">—</div></div>
+      <div class="stat-card"><div class="stat-label">Trackers</div><div class="stat-val" id="st-tr">—</div></div>
+      <div class="stat-card"><div class="stat-label">URLs opened</div><div class="stat-val" id="st-u">—</div></div>
+      <div class="stat-card accent-danger"><div class="stat-label">Failures</div><div class="stat-val danger" id="st-f">—</div></div>
+      <div class="stat-card" style="border-color:rgba(55,138,221,0.35)">
+        <div class="stat-label">Mails run</div>
+        <div class="stat-val" id="st-mr" style="color:var(--blue)">—</div>
+        <div class="stat-sub" id="st-mr-sub"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cross-log accounts -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-title">Cross-log accounts</span>
+      <div class="seg" id="status-filter">
+        <button class="on" onclick="setFilter('all',this)">All</button>
+        <button onclick="setFilter('pending',this)">Pending</button>
+        <button onclick="setFilter('complete',this)">Complete</button>
+      </div>
+    </div>
+    <div class="tbl-wrap scrollable">
+      <table><thead><tr>
+        <th style="width:26%">Account</th><th style="width:8%">Type</th>
+        <th style="width:13%">Log 1</th><th style="width:13%">Log 2</th><th style="width:13%">Log 3</th>
+        <th style="width:13%">Final</th><th style="width:14%">IP at run</th>
+      </tr></thead>
+      <tbody id="cross-body"><tr><td colspan="7" class="empty">Configure Dropbox links to load data.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Per-log detail -->
+  <div class="section">
+    <div class="section-head"><span class="section-title">Per-log detail</span></div>
+    <div class="tab-row" id="log-tabs"></div>
+    <div class="tbl-wrap scrollable" id="log-detail"><div class="empty">Load logs to see detail.</div></div>
+  </div>
+
+  <!-- IP history -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-title">IP history</span>
+      <div class="ip-controls">
+        <div class="seg" id="ip-filter">
+          <button class="on" onclick="setIPFilter('all',this)">All IPs</button>
+          <button onclick="setIPFilter('same',this)">Same IP only</button>
+          <button onclick="setIPFilter('changed',this)">Changed only</button>
+        </div>
+        <div class="seg" id="ip-group-toggle">
+          <button class="on" onclick="setIPGroup('list',this)">List</button>
+          <button onclick="setIPGroup('grouped',this)">Group by IP</button>
+        </div>
+      </div>
+    </div>
+    <div class="ip-stat-strip" id="ip-stat-strip" style="display:none"></div>
+    <div class="tbl-wrap scrollable" id="ip-table-wrap">
+      <table id="ip-table"><thead><tr>
+        <th style="width:36px">#</th><th style="width:26%">IP address</th>
+        <th style="width:16%">Date / time</th><th style="width:9%">Status</th>
+        <th style="width:9%">Gap</th><th>Mail IDs using this IP</th>
+      </tr></thead>
+      <tbody id="ip-body"><tr><td colspan="6" class="empty">Configure Dropbox IP log link.</td></tr></tbody>
+      </table>
+    </div>
+    <div id="ip-grouped" style="display:none"></div>
+  </div>
+
+  <!-- Log tail -->
+  <div class="section">
+    <div class="section-head"><span class="section-title">Log tail</span></div>
+    <div class="tab-row" id="tail-tabs"></div>
+    <div class="log-box" id="log-tail"><span class="ll">Configure Dropbox links to see entries...</span></div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const rawLogs = { 1: null, 2: null, 3: null };
+let rawIP = null;
+let activeLog = 1, activeTail = 1, currentFilter = 'all';
+let allCrossData = [], ipEntries = [];
+let currentIPFilter = 'all', currentIPGroup = 'list';
+let autoRefreshOn = true, countdownVal = 30, countdownTimer = null;
+let isLiveMode = true;
+let histEntryCount = 0;
+let liveHours = 3; // default: last 3 hours in live mode
+
+const CIRCUMFERENCE = 2 * Math.PI * 8; // r=8
+
+// ── Config persistence ─────────────────────────────────────────────────────
+function loadConfig() {
+  const cfg = JSON.parse(localStorage.getItem('bm_dropbox_cfg') || '{}');
+  if (cfg.log1) { document.getElementById('url-log1').value = cfg.log1; markSet('url-log1'); }
+  if (cfg.log2) { document.getElementById('url-log2').value = cfg.log2; markSet('url-log2'); }
+  if (cfg.log3) { document.getElementById('url-log3').value = cfg.log3; markSet('url-log3'); }
+  if (cfg.iplog) { document.getElementById('url-iplog').value = cfg.iplog; markSet('url-iplog'); }
+  if (cfg.hist && cfg.hist.length) {
+    cfg.hist.forEach(h => addHistEntry(h.date, h.log1, h.log2, h.log3, h.iplog));
+  }
+  updateConfigStatus();
+}
+
+function saveConfig() {
+  const cfg = {
+    log1:  toDirectURL(document.getElementById('url-log1').value.trim()),
+    log2:  toDirectURL(document.getElementById('url-log2').value.trim()),
+    log3:  toDirectURL(document.getElementById('url-log3').value.trim()),
+    iplog: toDirectURL(document.getElementById('url-iplog').value.trim()),
+    hist:  collectHistEntries()
+  };
+  localStorage.setItem('bm_dropbox_cfg', JSON.stringify(cfg));
+  ['url-log1','url-log2','url-log3','url-iplog'].forEach(id => {
+    if (document.getElementById(id).value.trim()) markSet(id);
+  });
+  updateConfigStatus();
+  // Collapse and fetch
+  document.getElementById('config-panel').classList.add('collapsed');
+  document.getElementById('config-chevron').style.transform = 'rotate(-90deg)';
+  fetchAllLogs();
+}
+
+function clearConfig() {
+  localStorage.removeItem('bm_dropbox_cfg');
+  ['url-log1','url-log2','url-log3','url-iplog'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('set');
+  });
+  document.getElementById('hist-entries').innerHTML = '';
+  histEntryCount = 0;
+  updateConfigStatus();
+}
+
+function markSet(id) { document.getElementById(id).classList.add('set'); }
+
+function getConfig() {
+  return JSON.parse(localStorage.getItem('bm_dropbox_cfg') || '{}');
+}
+
+function collectHistEntries() {
+  const entries = [];
+  document.querySelectorAll('.hist-entry').forEach(row => {
+    entries.push({
+      date:  row.querySelector('.he-date').value,
+      log1:  toDirectURL(row.querySelector('.he-l1').value.trim()),
+      log2:  toDirectURL(row.querySelector('.he-l2').value.trim()),
+      log3:  toDirectURL(row.querySelector('.he-l3').value.trim()),
+      iplog: toDirectURL(row.querySelector('.he-ip').value.trim()),
+    });
+  });
+  return entries;
+}
+
+function updateConfigStatus() {
+  const cfg = getConfig();
+  const count = [cfg.log1, cfg.log2, cfg.log3, cfg.iplog].filter(Boolean).length;
+  const lbl = document.getElementById('config-status-lbl');
+  if (count === 0) { lbl.textContent = 'Not configured'; lbl.className = 'config-status warn'; }
+  else if (count < 4) { lbl.textContent = `${count}/4 links set`; lbl.className = 'config-status warn'; }
+  else { lbl.textContent = 'All links set'; lbl.className = 'config-status ok'; }
+}
+
+function toggleConfig() {
+  const panel = document.getElementById('config-panel');
+  const chev  = document.getElementById('config-chevron');
+  panel.classList.toggle('collapsed');
+  chev.style.transform = panel.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
+}
+
+function addHistEntry(date='', l1='', l2='', l3='', ip='') {
+  histEntryCount++;
+  const id = histEntryCount;
+  const div = document.createElement('div');
+  div.className = 'hist-entry';
+  div.id = 'he-' + id;
+  div.style.cssText = 'display:grid;grid-template-columns:130px 1fr 1fr 1fr 1fr 28px;gap:5px;margin-bottom:5px;align-items:center';
+  div.innerHTML = `
+    <input type="date" class="he-date" value="${date}" style="font-family:var(--sans);font-size:11px;padding:5px 8px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg3);color:var(--text);outline:none">
+    <input type="text" class="he-l1" value="${l1}" placeholder="Log 1 URL" style="font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg3);color:var(--text);outline:none;width:100%">
+    <input type="text" class="he-l2" value="${l2}" placeholder="Log 2 URL" style="font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg3);color:var(--text);outline:none;width:100%">
+    <input type="text" class="he-l3" value="${l3}" placeholder="Log 3 URL" style="font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg3);color:var(--text);outline:none;width:100%">
+    <input type="text" class="he-ip" value="${ip}" placeholder="IP log URL" style="font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:var(--bg3);color:var(--text);outline:none;width:100%">
+    <button onclick="document.getElementById('he-${id}').remove()" style="padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:12px"></i></button>
+  `;
+  document.getElementById('hist-entries').appendChild(div);
+}
+
+// ── URL helpers ────────────────────────────────────────────────────────────
+function toDirectURL(url) {
+  if (!url) return '';
+  // Convert Dropbox share link to direct download
+  return url.replace('?dl=0', '?dl=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=1', '').replace('dl=0', '');
+  // Simpler universal approach:
+}
+
+function toDirectURLClean(url) {
+  if (!url) return '';
+  let u = url.trim();
+  // Replace dl=0 with dl=1, or add dl=1
+  if (u.includes('dropbox.com')) {
+    u = u.replace(/[?&]dl=0/, '').replace(/[?&]dl=1/, '');
+    u = u.includes('?') ? u + '&dl=1' : u + '?dl=1';
+    // Use dl.dropboxusercontent.com for CORS
+    u = u.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+  }
+  return u;
+}
+
+// ── Fetch status helpers ───────────────────────────────────────────────────
+function setFS(id, state, label) {
+  const el = document.getElementById('fs-' + id);
+  if (!el) return;
+  const icons = { loading: 'ti-loader-2 spin', ok: 'ti-circle-check', err: 'ti-alert-circle', idle: 'ti-circle-dashed' };
+  el.className = 'fetch-item ' + state;
+  el.innerHTML = `<i class="ti ${icons[state]}"></i> ${label}`;
+}
+
+// ── Fetch all logs from Dropbox ────────────────────────────────────────────
+async function fetchAllLogs(cfg_override) {
+  const cfg = cfg_override || getConfig();
+  if (!cfg.log1 && !cfg.log2 && !cfg.log3 && !cfg.iplog) return;
+
+  document.getElementById('last-parsed').textContent = 'Fetching...';
+
+  const tasks = [
+    { key: 1,      fsId: 'log1',  url: toDirectURLClean(cfg.log1),  label: 'Log 1' },
+    { key: 2,      fsId: 'log2',  url: toDirectURLClean(cfg.log2),  label: 'Log 2' },
+    { key: 3,      fsId: 'log3',  url: toDirectURLClean(cfg.log3),  label: 'Log 3' },
+    { key: 'ip',   fsId: 'iplog', url: toDirectURLClean(cfg.iplog), label: 'IP log' },
+  ];
+
+  await Promise.all(tasks.map(async t => {
+    if (!t.url) { setFS(t.fsId, 'idle', t.label + ' (no URL)'); return; }
+    setFS(t.fsId, 'loading', t.label);
+    try {
+      const res = await fetch(t.url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      if (t.key === 'ip') rawIP = text;
+      else rawLogs[t.key] = text;
+      setFS(t.fsId, 'ok', t.label + ' ✓');
+    } catch(e) {
+      if (t.key === 'ip') rawIP = null;
+      else rawLogs[t.key] = null;
+      setFS(t.fsId, 'err', t.label + ' — ' + (e.message || 'Failed'));
+    }
+  }));
+
+  document.getElementById('last-parsed').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  const lbl = document.getElementById('log-count-lbl');
+  const count = [rawLogs[1], rawLogs[2], rawLogs[3]].filter(Boolean).length;
+  lbl.textContent = `${count} log${count !== 1 ? 's' : ''}`;
+  lbl.style.display = count ? 'inline' : 'none';
+  reparse();
+}
+
+// ── Historical log loading ─────────────────────────────────────────────────
+function onHistDateChange() {}
+
+function loadHistorical() {
+  const date = document.getElementById('hist-date').value;
+  if (!date) { alert('Pick a date first.'); return; }
+  const cfg = getConfig();
+  if (!cfg.hist || !cfg.hist.length) {
+    alert('No historical entries saved. Add them in Dropbox Links → Historical logs.'); return;
+  }
+  const entry = cfg.hist.find(h => h.date === date);
+  if (!entry) {
+    alert(`No historical log entry found for ${date}.\nAdd it in Dropbox Links → Historical logs.`); return;
+  }
+  isLiveMode = false;
+  stopCountdown();
+  // Swap filter panels
+  document.getElementById('live-filter-section').style.display = 'none';
+  document.getElementById('hist-filter-section').style.display = '';
+  document.getElementById('mode-lbl').textContent = 'HISTORICAL';
+  document.getElementById('mode-lbl').className = 'mode-indicator';
+  document.getElementById('date-mode-lbl').textContent = date;
+  document.getElementById('date-mode-lbl').style.display = 'inline';
+  rawLogs[1] = null; rawLogs[2] = null; rawLogs[3] = null; rawIP = null;
+  fetchAllLogs({ log1: entry.log1, log2: entry.log2, log3: entry.log3, iplog: entry.iplog });
+}
+
+function loadLive() {
+  isLiveMode = true;
+  // Swap filter panels
+  document.getElementById('live-filter-section').style.display = '';
+  document.getElementById('hist-filter-section').style.display = 'none';
+  document.getElementById('mode-lbl').textContent = 'LIVE';
+  document.getElementById('mode-lbl').className = 'mode-indicator live';
+  document.getElementById('date-mode-lbl').style.display = 'none';
+  document.getElementById('hist-date').value = '';
+  updateLiveRangeDisplay();
+  rawLogs[1] = null; rawLogs[2] = null; rawLogs[3] = null; rawIP = null;
+  fetchAllLogs();
+  startCountdown();
+}
+
+// ── Auto-refresh countdown ─────────────────────────────────────────────────
+function startCountdown() {
+  stopCountdown();
+  countdownVal = 30;
+  updateRing();
+  countdownTimer = setInterval(() => {
+    countdownVal--;
+    updateRing();
+    if (countdownVal <= 0) {
+      countdownVal = 30;
+      if (isLiveMode) fetchAllLogs();
+    }
+  }, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(countdownTimer);
+  countdownTimer = null;
+}
+
+function updateRing() {
+  const pct = countdownVal / 30;
+  const offset = CIRCUMFERENCE * (1 - pct);
+  document.getElementById('ring-fg').style.strokeDashoffset = offset;
+  document.getElementById('countdown-num').textContent = countdownVal;
+}
+
+function toggleAutoRefresh() {
+  autoRefreshOn = !autoRefreshOn;
+  const btn = document.getElementById('auto-btn');
+  if (autoRefreshOn) {
+    btn.innerHTML = '<i class="ti ti-player-pause"></i>';
+    btn.title = 'Pause auto-refresh';
+    startCountdown();
+  } else {
+    btn.innerHTML = '<i class="ti ti-player-play"></i>';
+    btn.title = 'Resume auto-refresh';
+    stopCountdown();
+    document.getElementById('ring-fg').style.strokeDashoffset = CIRCUMFERENCE;
+    document.getElementById('countdown-num').textContent = '—';
+  }
+}
+
+function manualRefresh() {
+  countdownVal = 30;
+  updateRing();
+  if (isLiveMode) fetchAllLogs();
+  else {
+    const date = document.getElementById('hist-date').value;
+    if (date) loadHistorical(); else fetchAllLogs();
+  }
+}
+
+// ── Date helpers ───────────────────────────────────────────────────────────
+function applyQR() {
+  const v = document.getElementById('qrange').value;
+  const now = new Date();
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if (v === '24h')  { document.getElementById('dfrom').value = fmt(new Date(now - 86400000)); document.getElementById('dto').value = fmt(now); }
+  else if (v === '7d')  { document.getElementById('dfrom').value = fmt(new Date(now - 7*86400000)); document.getElementById('dto').value = fmt(now); }
+  else if (v === '30d') { document.getElementById('dfrom').value = fmt(new Date(now - 30*86400000)); document.getElementById('dto').value = fmt(now); }
+  else if (v === 'all') { document.getElementById('dfrom').value = ''; document.getElementById('dto').value = ''; }
+  reparse();
+}
+
+function setLiveHours(h, btn) {
+  liveHours = h;
+  document.querySelectorAll('#hour-picker button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  updateLiveRangeDisplay();
+  reparse();
+}
+
+function updateLiveRangeDisplay() {
+  const el = document.getElementById('live-range-display');
+  const note = document.getElementById('live-window-note');
+  if (!el) return;
+  if (liveHours === 0) {
+    el.textContent = 'Showing all data';
+    if (note) note.textContent = '';
+  } else {
+    const from = new Date(Date.now() - liveHours * 3600000);
+    el.textContent = `From ${from.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} → now`;
+    if (note) note.textContent = `auto-updates with each refresh`;
+  }
+}
+
+function getDF() {
+  if (isLiveMode) {
+    if (liveHours === 0) return { from: null, to: null };
+    return { from: new Date(Date.now() - liveHours * 3600000), to: null };
+  }
+  const f = document.getElementById('dfrom') ? document.getElementById('dfrom').value : '';
+  const t = document.getElementById('dto') ? document.getElementById('dto').value : '';
+  return { from: f ? new Date(f+'T00:00:00') : null, to: t ? new Date(t+'T23:59:59') : null };
+}
+
+function parseDT(s) {
+  const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+  return m ? new Date(m[3], m[2]-1, m[1], m[4], m[5], m[6]) : null;
+}
+
+function filterLines(lines) {
+  const { from, to } = getDF(); if (!from && !to) return lines;
+  let cdt = null;
+  return lines.filter(l => {
+    const m = l.match(/DateTime:\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/);
+    if (m) cdt = parseDT(m[1]);
+    if (!cdt) return true;
+    if (from && cdt < from) return false;
+    if (to && cdt > to) return false;
+    return true;
+  });
+}
+
+// ── Log parsing ────────────────────────────────────────────────────────────
+function parseOneLog(text) {
+  const all = text.split('\n').filter(l => l.trim());
+  const lines = filterLines(all);
+  const accounts = []; let cur = null, totalFail = 0, sessionDT = null;
+  let lastUser = null, lastDoneEmail = null, mailsRun = 0;
+  for (const line of lines) {
+    const l = line.trim();
+    const dtm = l.match(/DateTime:\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/);
+    if (dtm) sessionDT = parseDT(dtm[1]);
+    // Parse User line e.g. "User: ---vamsi---2/10"
+    if (l.startsWith('User:')) {
+      const um = l.match(/User:\s*(.+)/);
+      if (um) lastUser = um[1].trim();
+    }
+    if (l.includes('Email:') && !l.includes('Total') && !l.includes('queued')) {
+      const em = l.match(/Email:\s*(\S+)/);
+      if (em) {
+        cur = { email: em[1], type: '—', user: lastUser, status: 'running', queued: 0, processed: 0, ignored: 0, trackers: 0, urls: 0, failures: 0, sessionDT };
+        accounts.push(cur);
+      }
+    }
+    if (l.includes('Type:') && cur) { const m = l.match(/Type:\s*(Inbox|Spam)/); if (m) cur.type = m[1]; }
+    if (l.includes('Total emails queued:') && cur) { const m = l.match(/(\d+)/); if (m) cur.queued += parseInt(m[1]); }
+    if (l.includes('Total emails processed:') && cur) { const m = l.match(/(\d+)/); if (m) { cur.processed += parseInt(m[1]); mailsRun += parseInt(m[1]); } }
+    if (l.includes('Total emails ignored:') && cur) { const m = l.match(/(\d+)/); if (m) cur.ignored += parseInt(m[1]); }
+    if (l.includes('Tracking URLs found:') && cur) { const m = l.match(/(\d+)/); if (m) cur.trackers += parseInt(m[1]); }
+    if (l.includes('Normal URLs found:') && cur) { const m = l.match(/(\d+)/); if (m) cur.urls += parseInt(m[1]); }
+    if (l.includes('Tracking URLs completed') && cur) cur.trackDone = true;
+    if (l.includes('Normal URLs completed') && cur) cur.urlDone = true;
+    if (l.includes('Mailbox fully processed') && cur) { cur.status = 'complete'; lastDoneEmail = cur.email; }
+    if (l.includes('No new emails found') && cur && cur.status === 'running') { cur.status = 'no-new'; lastDoneEmail = cur.email; }
+    if (l.includes('[FETCH] Failed payload count:')) {
+      const m = l.match(/(\d+)/);
+      if (m) { totalFail += parseInt(m[1]); if (cur) cur.failures += parseInt(m[1]); }
+    }
+  }
+  accounts.forEach(a => {
+    if (a.status === 'running') {
+      if (a.trackDone && a.urlDone) a.status = 'complete';
+      else if (a.urlDone) a.status = 'urls-done';
+      else if (a.trackDone) a.status = 'trackers-done';
+      else if (a.processed > 0) a.status = 'in-progress';
+    }
+  });
+  // In live mode: newest first. In historical: oldest first (chronological).
+  if (isLiveMode) {
+    accounts.sort((a, b) => (b.sessionDT || 0) - (a.sessionDT || 0));
+  }
+  return { accounts, totalFail, rawLines: all, lastUser, lastDoneEmail, mailsRun };
+}
+
+// ── IP parsing & rendering ─────────────────────────────────────────────────
+function buildIPMailMap() {
+  const map = {};
+  allCrossData.forEach(row => {
+    if (row.ip && row.email) {
+      if (!map[row.ip]) map[row.ip] = new Set();
+      map[row.ip].add(row.email);
+    }
+  });
+  return map;
+}
+
+function parseIPLog(text) {
+  const { from, to } = getDF();
+  const lines = text.split('\n').filter(l => l.trim());
+  let last = null; ipEntries = [];
+  lines.forEach((line) => {
+    const ipm = line.match(/(\d{1,3}(?:\.\d{1,3}){3})/);
+    const dtm = line.match(/(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/);
+    if (!ipm) return;
+    const ip = ipm[1], dt = dtm ? parseDT(dtm[1]) : null;
+    if (from && dt && dt < from) return;
+    if (to && dt && dt > to) return;
+    ipEntries.push({ ip, dt, changed: last !== null && ip !== last });
+    last = ip;
+  });
+  renderIPSection();
+}
+
+function setIPFilter(f, btn) {
+  currentIPFilter = f;
+  document.querySelectorAll('#ip-filter button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderIPSection();
+}
+
+function setIPGroup(g, btn) {
+  currentIPGroup = g;
+  document.querySelectorAll('#ip-group-toggle button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderIPSection();
+}
+
+function renderIPSection() {
+  if (!ipEntries.length) {
+    document.getElementById('ip-body').innerHTML = '<tr><td colspan="6" class="empty">No IP entries in range.</td></tr>';
+    document.getElementById('ip-stat-strip').style.display = 'none';
+    return;
+  }
+  const ipMailMap = buildIPMailMap();
+  const ipCount = {};
+  ipEntries.forEach(e => { ipCount[e.ip] = (ipCount[e.ip] || 0) + 1; });
+  const uniqueIPs = Object.keys(ipCount).length;
+  const repeatedIPs = Object.entries(ipCount).filter(([,c]) => c > 1).length;
+  const changedCount = ipEntries.filter(e => e.changed).length;
+  const strip = document.getElementById('ip-stat-strip');
+  strip.style.display = 'flex';
+  strip.innerHTML = `
+    <div class="ip-stat-pill">Total entries: <span>${ipEntries.length}</span></div>
+    <div class="ip-stat-pill">Unique IPs: <span>${uniqueIPs}</span></div>
+    <div class="ip-stat-pill">Repeated IPs: <span style="color:var(--amber)">${repeatedIPs}</span></div>
+    <div class="ip-stat-pill">IP changes: <span>${changedCount}</span></div>
+  `;
+  let filtered = ipEntries;
+  if (currentIPFilter === 'same') filtered = ipEntries.filter(e => ipCount[e.ip] > 1);
+  else if (currentIPFilter === 'changed') filtered = ipEntries.filter(e => e.changed);
+  // Newest first in live mode
+  if (isLiveMode) filtered = filtered.slice().reverse();
+  if (currentIPGroup === 'grouped') renderIPGrouped(filtered, ipMailMap, ipCount);
+  else renderIPList(filtered, ipMailMap, ipCount);
+}
+
+function renderIPList(entries, ipMailMap, ipCount) {
+  document.getElementById('ip-table-wrap').style.display = '';
+  document.getElementById('ip-grouped').style.display = 'none';
+  const tbody = document.getElementById('ip-body');
+  if (!entries.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No entries match this filter.</td></tr>'; return; }
+  let prevDt = null;
+  tbody.innerHTML = entries.map((e, i) => {
+    const gap = prevDt && e.dt ? Math.round((e.dt - prevDt) / 60000) : null;
+    prevDt = e.dt;
+    const gapStr = gap !== null ? (gap >= 60 ? `${Math.floor(gap/60)}h ${gap%60}m` : `${gap}m`) : '—';
+    const isRepeat = ipCount[e.ip] > 1;
+    const badge = e.changed
+      ? '<span class="badge b-amber">Changed</span>'
+      : (i === 0 ? '<span class="badge b-blue">First</span>' : (isRepeat ? '<span class="badge b-purple">Repeat</span>' : '<span class="badge b-gray">Same</span>'));
+    const mails = ipMailMap[e.ip] ? [...ipMailMap[e.ip]] : [];
+    const mailHtml = mails.length
+      ? `<div class="mail-tags">${mails.map(m => `<span class="mail-tag">${m}</span>`).join('')}</div>`
+      : '<span style="color:var(--text3);font-size:11px">—</span>';
+    const repeatCount = ipCount[e.ip] > 1 ? `<span style="font-size:10px;color:var(--amber);margin-left:6px">(×${ipCount[e.ip]})</span>` : '';
+    return `<tr class="${isRepeat ? 'ip-repeat' : ''}">
+      <td style="color:var(--text3);font-size:11px">${i+1}</td>
+      <td style="font-family:var(--mono);font-size:11px">${e.ip}${repeatCount}</td>
+      <td style="font-size:11px;color:var(--text2)">${e.dt ? e.dt.toLocaleString() : '—'}</td>
+      <td>${badge}</td>
+      <td style="font-size:11px;color:var(--text2)">${gapStr}</td>
+      <td class="mail-cell">${mailHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderIPGrouped(entries, ipMailMap, ipCount) {
+  document.getElementById('ip-table-wrap').style.display = 'none';
+  const container = document.getElementById('ip-grouped');
+  container.style.display = '';
+  if (!entries.length) { container.innerHTML = '<div class="empty" style="border:0.5px solid var(--border);border-radius:var(--radius);padding:0.875rem 1rem">No entries match this filter.</div>'; return; }
+  const groups = {};
+  entries.forEach(e => { if (!groups[e.ip]) groups[e.ip] = []; groups[e.ip].push(e); });
+  const sorted = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  container.innerHTML = sorted.map(([ip, list]) => {
+    const mails = ipMailMap[ip] ? [...ipMailMap[ip]] : [];
+    const mailHtml = mails.length
+      ? mails.map(m => `<span class="mail-tag">${m}</span>`).join('')
+      : '<span style="color:var(--text3);font-size:11px">No associated mail IDs</span>';
+    const times = list.filter(e => e.dt).map(e => e.dt.toLocaleString());
+    const timeRows = times.length
+      ? times.map((t, i) => `<span style="font-size:10px;color:var(--text2);display:block;line-height:1.8">${i+1}. ${t}</span>`).join('')
+      : '<span style="color:var(--text3);font-size:10px">No timestamps</span>';
+    const isRepeat = list.length > 1;
+    const countBadge = isRepeat ? `<span class="badge b-purple">×${list.length} occurrences</span>` : `<span class="badge b-gray">×1</span>`;
+    return `<div style="background:var(--bg2);border:0.5px solid ${isRepeat ? 'rgba(168,85,247,0.3)' : 'var(--border)'};border-radius:var(--radius);padding:0.875rem 1rem;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:500">${ip}</span>
+        ${countBadge}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Mail IDs</div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px">${mailHtml}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Seen at</div>
+          ${timeRows}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getIPForDT(dt) {
+  if (!dt || !ipEntries.length) return null;
+  let best = null;
+  for (const e of ipEntries) { if (!e.dt) continue; if (e.dt <= dt) best = e.ip; else break; }
+  return best;
+}
+
+// ── Badge helpers ──────────────────────────────────────────────────────────
+function sbadge(s) {
+  const m = {
+    'complete':      '<span class="badge b-green"><span class="dot dot-g"></span>Complete</span>',
+    'urls-done':     '<span class="badge b-blue">URLs done</span>',
+    'trackers-done': '<span class="badge b-amber">Trackers done</span>',
+    'in-progress':   '<span class="badge b-amber"><span class="dot dot-a"></span>Running</span>',
+    'no-new':        '<span class="badge b-gray"><span class="dot dot-x"></span>No mail</span>',
+    'running':       '<span class="badge b-amber"><span class="dot dot-a"></span>Running</span>',
+    '—':             '<span style="color:var(--text3);font-size:11px">—</span>'
+  };
+  return m[s] || `<span class="badge b-gray">${s}</span>`;
+}
+
+function resolve(statuses) {
+  if (statuses.some(s => s === 'complete')) return 'complete';
+  if (statuses.some(s => s === 'urls-done')) return 'urls-done';
+  if (statuses.some(s => s === 'trackers-done')) return 'trackers-done';
+  if (statuses.some(s => s === 'in-progress')) return 'in-progress';
+  if (statuses.every(s => s === 'no-new' || s === '—')) return 'no-new';
+  return 'running';
+}
+function isPending(s) { return s !== 'complete' && s !== 'no-new'; }
+
+// ── Cross log ──────────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('#status-filter button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderCross();
+}
+
+function renderCross() {
+  const tbody = document.getElementById('cross-body');
+  let rows = allCrossData;
+  if (currentFilter === 'pending') rows = rows.filter(r => isPending(r.final));
+  else if (currentFilter === 'complete') rows = rows.filter(r => !isPending(r.final));
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts match this filter.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const resolved = r.final === 'complete' && Object.values(r.logs).some(s => s !== 'complete' && s !== '—');
+    const finalCell = resolved
+      ? `${sbadge(r.final)}<span class="badge b-green" style="font-size:9px;margin-left:3px;opacity:.7">↗ other log</span>`
+      : sbadge(r.final);
+    const ipCell = r.ip
+      ? `<span style="font-family:var(--mono);font-size:10px;color:var(--text2)">${r.ip}</span>`
+      : '<span style="color:var(--text3)">—</span>';
+    return `<tr>
+      <td title="${r.email}" style="font-weight:500">${r.email}</td>
+      <td><span class="badge b-blue">${r.type}</span></td>
+      <td>${sbadge(r.logs[1] || '—')}</td>
+      <td>${sbadge(r.logs[2] || '—')}</td>
+      <td>${sbadge(r.logs[3] || '—')}</td>
+      <td>${finalCell}</td>
+      <td>${ipCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function buildCross(parsed) {
+  const map = {};
+  Object.entries(parsed).forEach(([k, data]) => {
+    data.accounts.forEach(a => {
+      const key = a.email + '|' + a.type;
+      if (!map[key]) map[key] = { email: a.email, type: a.type, logs: {}, sessionDT: null };
+      map[key].logs[k] = a.status;
+      if (!map[key].sessionDT && a.sessionDT) map[key].sessionDT = a.sessionDT;
+    });
+  });
+  allCrossData = Object.values(map).map(e => {
+    const known = Object.values(e.logs).filter(s => s !== '—');
+    return { ...e, final: resolve(known.length ? known : ['—']), ip: getIPForDT(e.sessionDT) };
+  });
+  // Newest first in live mode
+  if (isLiveMode) {
+    allCrossData.sort((a, b) => (b.sessionDT || 0) - (a.sessionDT || 0));
+  }
+  document.getElementById('st-pend').textContent = allCrossData.filter(r => isPending(r.final)).length;
+  renderCross();
+  if (ipEntries.length) renderIPSection();
+}
+
+// ── Log detail ─────────────────────────────────────────────────────────────
+function buildLogTabs(parsed) {
+  const keys = Object.keys(parsed);
+  document.getElementById('log-tabs').innerHTML = keys.map(k =>
+    `<button class="tab-btn${activeLog == k ? ' on' : ''}" onclick="switchLog(${k})">Log ${k}</button>`
+  ).join('');
+  renderLogDetail(parsed);
+}
+
+function switchLog(k) {
+  activeLog = k;
+  const parsed = {}; [1,2,3].forEach(i => { if (rawLogs[i]) parsed[i] = parseOneLog(rawLogs[i]); });
+  document.querySelectorAll('#log-tabs .tab-btn').forEach((b, i) => { b.classList.toggle('on', Object.keys(parsed)[i] == k); });
+  renderLogDetail(parsed);
+}
+
+function renderLogDetail(parsed) {
+  const data = parsed[activeLog];
+  const el = document.getElementById('log-detail');
+  if (!data || !data.accounts.length) { el.innerHTML = '<div class="empty">No accounts in this range.</div>'; return; }
+  el.innerHTML = `<table><thead><tr>
+    <th>Account</th><th style="width:80px">User</th><th style="width:70px">Type</th><th style="width:110px">Status</th>
+    <th style="width:140px">Progress</th><th style="width:70px">Trackers</th><th style="width:60px">URLs</th><th style="width:65px">Ignored</th>
+  </tr></thead><tbody>${data.accounts.map(a => {
+    const pct = a.queued > 0 ? Math.round(a.processed/a.queued*100) : (a.status === 'complete' ? 100 : 0);
+    const userLabel = a.user
+      ? `<span style="font-size:10px;color:#60a5fa;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;display:block" title="${a.user}">${a.user}</span>`
+      : '<span style="color:var(--text3)">—</span>';
+    return `<tr>
+      <td title="${a.email}" style="font-weight:500">${a.email}</td>
+      <td>${userLabel}</td>
+      <td><span class="badge b-blue">${a.type}</span></td>
+      <td>${sbadge(a.status)}</td>
+      <td>
+        <div style="font-size:10px;color:var(--text3)">${pct}% · ${a.processed}/${a.queued}</div>
+        <div class="pbar-bg"><div class="pbar-fill" style="width:${pct}%"></div></div>
+      </td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${a.trackers}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${a.urls}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${a.ignored}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+// ── Log tail ───────────────────────────────────────────────────────────────
+function buildTailTabs(parsed) {
+  const keys = Object.keys(parsed);
+  document.getElementById('tail-tabs').innerHTML = keys.map(k =>
+    `<button class="tab-btn${activeTail == k ? ' on' : ''}" onclick="switchTail(${k})">Log ${k}</button>`
+  ).join('');
+  renderTail(parsed);
+}
+
+function switchTail(k) {
+  activeTail = k;
+  const parsed = {}; [1,2,3].forEach(i => { if (rawLogs[i]) parsed[i] = parseOneLog(rawLogs[i]); });
+  document.querySelectorAll('#tail-tabs .tab-btn').forEach((b, i) => { b.classList.toggle('on', Object.keys(parsed)[i] == k); });
+  renderTail(parsed);
+}
+
+function renderTail(parsed) {
+  const data = parsed[activeTail];
+  const el = document.getElementById('log-tail');
+  if (!data) { el.innerHTML = '<span class="ll">No data.</span>'; return; }
+  let lines = filterLines(data.rawLines);
+  if (isLiveMode) {
+    // Newest at top: reverse, take first 60
+    lines = lines.slice().reverse().slice(0, 60);
+  } else {
+    lines = lines.slice(-60);
+  }
+  el.innerHTML = lines.map(l => {
+    const t = l.trim(); let c = 'll';
+    if (t.includes('completed') || t.includes('fully processed')) c = 'lg';
+    else if (t.includes('[FETCH]') || t.includes('Failed') || t.includes('Invalid')) c = 'lr';
+    else if (t.includes('[RETRY]') || t.includes('ignored') || t.includes('No new')) c = 'ly';
+    else if (t.includes('Start') || t.includes('End') || t.includes('Opening') || t.includes('DateTime')) c = 'lb';
+    return `<div class="${c}">${t}</div>`;
+  }).join('');
+  // In live mode scroll to top (newest), in historical scroll to bottom
+  if (isLiveMode) el.scrollTop = 0;
+  else el.scrollTop = el.scrollHeight;
+}
+
+// ── Main reparse ───────────────────────────────────────────────────────────
+function reparse() {
+  const loaded = Object.entries(rawLogs).filter(([,v]) => v);
+  if (!loaded.length && !rawIP) return;
+  if (isLiveMode) {
+    updateLiveRangeDisplay();
+    document.getElementById('fnote').textContent = '';
+  } else {
+    const { from, to } = getDF();
+    document.getElementById('fnote').textContent = (from || to)
+      ? `${from ? from.toLocaleDateString() : 'start'} → ${to ? to.toLocaleDateString() : 'now'}` : '';
+  }
+  if (rawIP) parseIPLog(rawIP);
+  const parsed = {};
+  let sumQ=0, sumP=0, sumI=0, sumTr=0, sumU=0, sumF=0, sumMR=0;
+  loaded.forEach(([k, v]) => {
+    parsed[k] = parseOneLog(v);
+    sumQ  += parsed[k].accounts.reduce((s,a) => s+a.queued, 0);
+    sumP  += parsed[k].accounts.reduce((s,a) => s+a.processed, 0);
+    sumI  += parsed[k].accounts.reduce((s,a) => s+a.ignored, 0);
+    sumTr += parsed[k].accounts.reduce((s,a) => s+a.trackers, 0);
+    sumU  += parsed[k].accounts.reduce((s,a) => s+a.urls, 0);
+    sumF  += parsed[k].totalFail;
+    sumMR += parsed[k].mailsRun || 0;
+  });
+  document.getElementById('st-q').textContent  = sumQ  || '0';
+  document.getElementById('st-p').textContent  = sumP  || '0';
+  document.getElementById('st-ps').textContent = sumQ ? `${Math.round(sumP/sumQ*100)}% of ${sumQ}` : '';
+  document.getElementById('st-i').textContent  = sumI  || '0';
+  document.getElementById('st-tr').textContent = sumTr || '0';
+  document.getElementById('st-u').textContent  = sumU  || '0';
+  document.getElementById('st-f').textContent  = sumF  || '0';
+  document.getElementById('st-mr').textContent = sumMR || '0';
+  document.getElementById('st-mr-sub').textContent = sumMR ? `across ${loaded.length} log${loaded.length>1?'s':''}` : '';
+
+  // Render user strip
+  const strip = document.getElementById('user-strip');
+  const cards = document.getElementById('user-cards');
+  const anyUser = loaded.some(([k]) => parsed[k].lastUser);
+  if (anyUser) {
+    strip.style.display = '';
+    cards.innerHTML = loaded.map(([k]) => {
+      const d = parsed[k];
+      const user = d.lastUser || '—';
+      const lastEmail = d.lastDoneEmail || '—';
+      const mailCount = d.mailsRun || 0;
+
+      // Extract trailing number from user string e.g. "---vamsi---2/10" → 2
+      // or "deepthi_gmailthree-5-deepthiauth--43" → 43
+      const numMatch = user.match(/-+(\d+)\s*$/);
+      const currentMailNum = numMatch ? parseInt(numMatch[1]) : null;
+
+      const mailNumBox = currentMailNum !== null
+        ? `<div style="
+            background:rgba(29,158,117,0.1);
+            border:0.5px solid rgba(29,158,117,0.35);
+            border-radius:var(--radius);
+            padding:0.5rem 0.75rem;
+            text-align:center;
+            margin-bottom:8px;
+            ">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Currently running</div>
+            <div style="font-size:28px;font-weight:600;color:#2dd4a7;line-height:1;letter-spacing:-0.02em">#${currentMailNum}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px">mail</div>
+          </div>`
+        : '';
+
+      return `<div style="background:var(--bg2);border:0.5px solid rgba(55,138,221,0.25);border-radius:var(--radius);padding:0.75rem 1rem;min-width:200px;flex:1">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Log ${k}</div>
+        ${mailNumBox}
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+          <i class="ti ti-user" style="font-size:13px;color:#60a5fa"></i>
+          <span style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${user}">${user}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Last done mail</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px" title="${lastEmail}">${lastEmail}</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:10px;color:var(--text3)">Mails run:</span>
+          <span style="font-size:12px;font-weight:600;color:#60a5fa">${mailCount}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    strip.style.display = 'none';
+  }
+
+  buildCross(parsed);
+  buildLogTabs(parsed);
+  buildTailTabs(parsed);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  updateRing();
+  updateLiveRangeDisplay();
+  const cfg = getConfig();
+  const hasLinks = cfg.log1 || cfg.log2 || cfg.log3 || cfg.iplog;
+  if (hasLinks) {
+    document.getElementById('config-panel').classList.add('collapsed');
+    document.getElementById('config-chevron').style.transform = 'rotate(-90deg)';
+    fetchAllLogs();
+  }
+  startCountdown();
+});
+</script>
+</body>
+</html>
